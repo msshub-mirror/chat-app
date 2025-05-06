@@ -285,12 +285,14 @@ export default function App() {
   useEffect(() => {
     if (view === 'chat' && token) {
       axios.get(`${API}/rooms`, { headers: { Authorization: `Bearer ${token}` } })
-           .then(r => setRooms(r.data.filter(r => r.name !== 'General')));
+           .then(r => setRooms(
+             r.data
+              .filter(rm => rm.name !== 'General')
+              // 明示的に dm_ という名前の部屋は元から API が返さない想定ですが念のため
+              .filter(rm => !rm.name.startsWith('dm_'))
+           ));
       axios.get(`${API}/friends`, { headers: { Authorization: `Bearer ${token}` } })
-           .then(r => {
-             // フレンド一覧に、DMルームIDを付与して sidebar で使いやすく
-             setFriends(r.data.map(f => ({ ...f, dmId: null })));
-           });
+           .then(r => setFriends(r.data));
     }
   }, [view, token]);
 
