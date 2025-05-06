@@ -470,7 +470,7 @@ export default function App() {
   return (
     <div className="app-container">
       <header className="header">
-        <button onClick={()=>setIsSidebarOpen(o=>!o)}>☰</button>
+        <button onClick={()=>setSidebar(o=>!o)}>☰</button>
         <h1>チャットルーム</h1>
         <div className="header-buttons">
           <button onClick={()=>setAccOpen(true)}>アカウント</button>
