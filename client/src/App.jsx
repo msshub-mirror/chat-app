@@ -6,7 +6,7 @@ import './App.css';
 const API    = 'https://chat-app-backend-rqh4.onrender.com/api';
 const SOCKET = 'https://chat-app-backend-rqh4.onrender.com';
 
-// --- 汎用オーバーレイ ---
+// — 汎用オーバーレイ —
 function Overlay({ isOpen, onClose, children }) {
   if (!isOpen) return null;
   return (
@@ -18,22 +18,28 @@ function Overlay({ isOpen, onClose, children }) {
   );
 }
 
-// --- アカウント情報オーバーレイ ---
-function AccountOverlay({ isOpen, onClose, token, onNicknameChange }) {
-  const [info, setInfo] = useState({ username: '', nickname: '' });
+// — アカウント情報オーバーレイ —
+function AccountOverlay({ isOpen, onClose, token, onNicknameChange, onIconChange }) {
+  const [info, setInfo] = useState({ username:'', nickname:'', icon_url:'' });
   useEffect(() => {
     if (!isOpen) return;
-    axios.get(`${API}/me`, { headers: { Authorization: `Bearer ${token}` } })
-         .then(r => setInfo(r.data))
-         .catch(console.error);
+    axios.get(`${API}/me`, { headers:{ Authorization:`Bearer ${token}` } })
+      .then(r => setInfo(r.data))
+      .catch(console.error);
   }, [isOpen, token]);
+
   const save = async () => {
     await axios.put(`${API}/me/nickname`, { nickname: info.nickname }, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers:{ Authorization:`Bearer ${token}` }
+    });
+    await axios.put(`${API}/me/icon`, { iconUrl: info.icon_url }, {
+      headers:{ Authorization:`Bearer ${token}` }
     });
     onNicknameChange(info.nickname);
+    onIconChange(info.icon_url);
     onClose();
   };
+
   return (
     <Overlay isOpen={isOpen} onClose={onClose}>
       <h2>アカウント情報</h2>
@@ -43,12 +49,43 @@ function AccountOverlay({ isOpen, onClose, token, onNicknameChange }) {
         value={info.nickname}
         onChange={e => setInfo({ ...info, nickname: e.target.value })}
       /><br/>
+      <label>アイコン URL</label><br/>
+      <input
+        value={info.icon_url}
+        onChange={e => setInfo({ ...info, icon_url: e.target.value })}
+      /><br/>
       <button onClick={save}>保存</button>
     </Overlay>
   );
 }
 
-// --- 設定オーバーレイ ---
+// — ユーザー詳細オーバーレイ —
+function UserDetailOverlay({ isOpen, onClose, token, userId }) {
+  const [user, setUser] = useState(null);
+  useEffect(() => {
+    if (!isOpen || !userId) return;
+    axios.get(`${API}/users/${userId}`, {
+      headers:{ Authorization:`Bearer ${token}` }
+    })
+    .then(r => setUser(r.data))
+    .catch(console.error);
+  }, [isOpen, userId, token]);
+  if (!user) return null;
+  return (
+    <Overlay isOpen={isOpen} onClose={onClose}>
+      <h2>ユーザー詳細</h2>
+      <img
+        src={user.icon_url || '/default-avatar.png'}
+        className="detail-avatar"
+        alt="avatar"
+      />
+      <p>ユーザー名: {user.username}</p>
+      <p>ニックネーム: {user.nickname}</p>
+    </Overlay>
+  );
+}
+
+// — 設定オーバーレイ —
 function SettingsOverlay({ isOpen, onClose, token, applyTheme }) {
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'line');
   const [oldPw, setOldPw] = useState(''), [newPw, setNewPw] = useState('');
@@ -60,7 +97,7 @@ function SettingsOverlay({ isOpen, onClose, token, applyTheme }) {
   const changePw = async () => {
     await axios.put(`${API}/me/password`,
       { oldPassword: oldPw, newPassword: newPw },
-      { headers: { Authorization: `Bearer ${token}` } }
+      { headers: { Authorization:`Bearer ${token}` } }
     );
     alert('パスワードを変更しました');
   };
@@ -69,26 +106,26 @@ function SettingsOverlay({ isOpen, onClose, token, applyTheme }) {
       <h2>設定</h2>
       <div>
         <h3>テーマ</h3>
-        <select value={theme} onChange={e => setTheme(e.target.value)}>
+        <select value={theme} onChange={e=>setTheme(e.target.value)}>
           <option value="line">LINE風</option>
           <option value="discord">Discord風</option>
           <option value="x">X風</option>
         </select>
         <button onClick={saveTheme}>適用</button>
       </div>
-      <div style={{ marginTop: '1em' }}>
+      <div style={{ marginTop:'1em' }}>
         <h3>パスワード変更</h3>
         <input
           type="password"
           placeholder="現在のパスワード"
           value={oldPw}
-          onChange={e => setOldPw(e.target.value)}
+          onChange={e=>setOldPw(e.target.value)}
         /><br/>
         <input
           type="password"
           placeholder="新しいパスワード"
           value={newPw}
-          onChange={e => setNewPw(e.target.value)}
+          onChange={e=>setNewPw(e.target.value)}
         /><br/>
         <button onClick={changePw}>変更</button>
       </div>
@@ -96,84 +133,57 @@ function SettingsOverlay({ isOpen, onClose, token, applyTheme }) {
   );
 }
 
-// --- 招待オーバーレイ ---
-function InviteOverlay({ isOpen, onClose, token, roomId }) {
-  if (!roomId) return null;
-  const [mode, setMode] = useState('username');
-  const [username, setUsername] = useState('');
-  const inviteLink = `${window.location.origin}/?invite=${roomId}`;
-  const inviteByName = async () => {
-    await axios.post(`${API}/rooms/${roomId}/invite`,
-      { username },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    alert('招待しました');
-    onClose();
-  };
+// — 招待オーバーレイ —
+function InviteOverlay({ isOpen, onClose, inviteToken }) {
+  if (!inviteToken) return null;
+  const link = `${window.location.origin}/?invite=${inviteToken}`;
   return (
     <Overlay isOpen={isOpen} onClose={onClose}>
-      <h2>招待</h2>
-      <button onClick={() => setMode('username')}>ユーザー名で招待</button>
-      <button onClick={() => setMode('link')}>リンクで招待</button>
-      {mode === 'username' ? (
-        <>
-          <input
-            placeholder="ユーザー名を入力"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-          /><br/>
-          <button onClick={inviteByName}>招待</button>
-        </>
-      ) : (
-        <>
-          <p>このリンクで参加できます：</p>
-          <input readOnly value={inviteLink} style={{ width: '100%' }}/><br/>
-          <button onClick={() => navigator.clipboard.writeText(inviteLink)}>
-            コピー
-          </button>
-        </>
-      )}
+      <h2>招待リンク</h2>
+      <input readOnly value={link} style={{width:'100%'}}/>
+      <button onClick={()=>navigator.clipboard.writeText(link)}>コピー</button>
     </Overlay>
   );
 }
 
-// --- フレンド管理オーバーレイ ---
+// — フレンド管理オーバーレイ —
 function FriendOverlay({ isOpen, onClose, token, onChat }) {
   const [username, setUsername] = useState('');
   const [incoming, setIncoming] = useState([]);
   const [friends, setFriends]   = useState([]);
   useEffect(() => {
     if (!isOpen) return;
-    axios.get(`${API}/friend-requests`, { headers: { Authorization: `Bearer ${token}` } })
-         .then(r => setIncoming(r.data)).catch(console.error);
-    axios.get(`${API}/friends`, { headers: { Authorization: `Bearer ${token}` } })
-         .then(r => setFriends(r.data)).catch(console.error);
+    axios.get(`${API}/friend-requests`, { headers:{ Authorization:`Bearer ${token}` } })
+      .then(r=>setIncoming(r.data))
+      .catch(console.error);
+    axios.get(`${API}/friends`, { headers:{ Authorization:`Bearer ${token}` } })
+      .then(r=>setFriends(r.data))
+      .catch(console.error);
   }, [isOpen, token]);
   const sendReq = async () => {
     try {
       await axios.post(`${API}/friend-requests`, { username }, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers:{ Authorization:`Bearer ${token}` }
       });
       alert('申請送信');
       setUsername('');
     } catch (e) {
-      alert(e.response?.data?.error || e.message);
+      alert(e.response?.data?.error||e.message);
     }
   };
   const respond = async (id, accept) => {
-    const url = `${API}/friend-requests/${id}` + (accept ? '/accept' : '');
-    const method = accept ? 'put' : 'delete';
+    const url = `${API}/friend-requests/${id}` + (accept?'/accept':'');
+    const method = accept?'put':'delete';
     try {
-      await axios({ method, url, headers: { Authorization: `Bearer ${token}` } });
-      // 再取得
+      await axios({ method, url, headers:{ Authorization:`Bearer ${token}` } });
       const [iq, fr] = await Promise.all([
-        axios.get(`${API}/friend-requests`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API}/friends`,          { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${API}/friend-requests`,{ headers:{ Authorization:`Bearer ${token}` }}),
+        axios.get(`${API}/friends`,         { headers:{ Authorization:`Bearer ${token}` }})
       ]);
       setIncoming(iq.data);
       setFriends(fr.data);
     } catch (e) {
-      alert(e.response?.data?.error || e.message);
+      alert(e.response?.data?.error||e.message);
     }
   };
   return (
@@ -184,68 +194,68 @@ function FriendOverlay({ isOpen, onClose, token, onChat }) {
         <input
           placeholder="ユーザー名"
           value={username}
-          onChange={e => setUsername(e.target.value)}
-        /><button onClick={sendReq}>送信</button>
+          onChange={e=>setUsername(e.target.value)}
+        />
+        <button onClick={sendReq}>送信</button>
       </div>
-      <div style={{ marginTop:20 }}>
+      <div style={{marginTop:20}}>
         <h3>受信中の申請</h3>
-        {incoming.length ? incoming.map(r => (
-          <div key={r.id}>
-            {r.nickname}(@{r.username})
-            <button onClick={() => respond(r.id,true)}>承認</button>
-            <button onClick={() => respond(r.id,false)}>無視</button>
-          </div>
-        )) : <p>なし</p>}
+        {incoming.length
+          ? incoming.map(r=>(
+              <div key={r.id}>
+                {r.nickname}(@{r.username})
+                <button onClick={()=>respond(r.id,true)}>承認</button>
+                <button onClick={()=>respond(r.id,false)}>無視</button>
+              </div>
+            ))
+          : <p>なし</p>
+        }
       </div>
-      <div style={{ marginTop:20 }}>
+      <div style={{marginTop:20}}>
         <h3>フレンド一覧</h3>
-        {friends.length ? friends.map(f => (
-          <div key={f.id}>
-            {f.nickname}(@{f.username})
-            <button onClick={() => onChat(f.id)}>チャット</button>
-          </div>
-        )) : <p>なし</p>}
+        {friends.length
+          ? friends.map(f=>(
+              <div key={f.id}>
+                {f.nickname}(@{f.username})
+                <button onClick={()=>onChat(f.id)}>チャット</button>
+              </div>
+            ))
+          : <p>なし</p>
+        }
       </div>
     </Overlay>
   );
 }
 
-// --- サイドバー ---
-function Sidebar({ isOpen, rooms, friends, friendsOpen, setFriendsOpen, onRoomChange, onCreateRoom, currentRoom }) {
+// — サイドバー —
+function Sidebar({
+  isOpen, rooms, friends, friendsOpen, setFriendsOpen,
+  onRoomChange, onCreateRoom, currentRoom
+}) {
   return (
-    <nav className={`sidebar ${isOpen ? 'open' : ''}`}>
-      {/* 上部：ルーム作成ボタン + ルーム一覧 */}
+    <nav className={`sidebar ${isOpen?'open':''}`}>
       <div className="sidebar-content">
         <button onClick={onCreateRoom}>＋ルーム作成</button>
         <ul className="rooms-list">
-          {rooms.map(r => (
-            <li
-              key={r.id}
-              className={r.id === currentRoom ? 'active' : ''}
-              onClick={() => onRoomChange(r.id)}
-            >
+          {rooms.map(r=>(
+            <li key={r.id}
+                className={r.id===currentRoom?'active':''}
+                onClick={()=>onRoomChange(r.id)}>
               {r.name}
             </li>
           ))}
         </ul>
       </div>
-
-      {/* 下部：フレンドセクション */}
       <div className="friends-section">
-        <div
-          className="friends-toggle"
-          onClick={() => setFriendsOpen(o => !o)}
-        >
-          フレンドチャット {friendsOpen ? '▼' : '▶︎'}
+        <div className="friends-toggle" onClick={()=>setFriendsOpen(o=>!o)}>
+          フレンドチャット {friendsOpen?'▼':'▶︎'}
         </div>
         {friendsOpen && (
           <ul className="friends-list">
-            {friends.map(f => (
-              <li
-                key={f.id}
-                className={f.dmId === currentRoom ? 'active' : ''}
-                onClick={() => onRoomChange(f.dmId)}
-              >
+            {friends.map(f=>(
+              <li key={f.id}
+                  className={f.dmId===currentRoom?'active':''}
+                  onClick={()=>onRoomChange(f.dmId)}>
                 {f.nickname}
               </li>
             ))}
@@ -256,210 +266,201 @@ function Sidebar({ isOpen, rooms, friends, friendsOpen, setFriendsOpen, onRoomCh
   );
 }
 
-// --- メインコンポーネント ---
+// — メインコンポーネント —
 export default function App() {
-  // --- State ---
-  const [token, setToken]             = useState(localStorage.getItem('token'));
-  const [view, setView]               = useState(token ? 'chat' : 'login');
-  const [loginUser, setLoginUser]     = useState('');
-  const [loginPw, setLoginPw]         = useState('');
-  const [regUser, setRegUser]         = useState('');
-  const [regPw, setRegPw]             = useState('');
-  const [regNick, setRegNick]         = useState('');
-  const [rooms, setRooms]             = useState([]);
-  const [friends, setFriends]         = useState([]);
-  const [friendsOpen, setFriendsOpen] = useState(false);
-  const [currentRoom, setCurrentRoom] = useState(null);
-  const [chat, setChat]               = useState([]);
-  const [socket, setSocket]           = useState(null);
-  const [msg, setMsg]                 = useState('');
-  const [isSidebarOpen, setSidebar]   = useState(true);
-  const [isAccOpen, setAccOpen]       = useState(false);
-  const [isSetOpen, setSetOpen]       = useState(false);
-  const [isInvOpen, setInvOpen]       = useState(false);
-  const [isFriendMgmtOpen, setFriendMgmtOpen] = useState(false);
-  const [theme, setTheme]             = useState(localStorage.getItem('theme') || 'line');
+  const [token,setToken]     = useState(localStorage.getItem('token'));
+  const [view,setView]       = useState(token?'chat':'login');
+  const [loginUser,setLoginUser]=useState(''),[loginPw,setLoginPw]=useState('');
+  const [regUser,setRegUser] = useState(''),[regPw,setRegPw]=useState('');
+  const [regNick,setRegNick] = useState('');
+  const [rooms,setRooms]     = useState([]);
+  const [friends,setFriends] = useState([]);
+  const [friendsOpen,setFriendsOpen]=useState(false);
+  const [currentRoom,setCurrentRoom]=useState(null);
+  const [inviteToken,setInviteToken]=useState(null);
+  const [chat,setChat]       = useState([]);
+  const [socket,setSocket]   = useState(null);
+  const [msg,setMsg]         = useState('');
+  const [theme,setTheme]     = useState(localStorage.getItem('theme')||'line');
+  const [isAccOpen,setAccOpen]=useState(false);
+  const [isSetOpen,setSetOpen]=useState(false);
+  const [isInvOpen,setInvOpen]=useState(false);
+  const [isFriendMgmtOpen,setFriendMgmtOpen]=useState(false);
+  const [userDetailId,setUserDetailId]=useState(null);
+  const [isUserDetailOpen,setUserDetailOpen]=useState(false);
 
   const bottomRef = useRef(null);
 
-  // 背景・ヘッダー色テーマ適用
-  useEffect(() => {
-    document.body.className = `theme-${theme}`;
-  }, [theme]);
+  // テーマ適用
+  useEffect(()=>{ document.body.className=`theme-${theme}` },[theme]);
 
-  // Socket.io は token が変わって chat 表示モードになったら一度だけ接続
-  useEffect(() => {
-    if (view !== 'chat' || !token) return;
-    const s = io(SOCKET, { auth: { token }, transports: ['websocket'] });
-    s.on('chatMessage', data => {
-      // Only append messages for the currently active room
-      if (data.roomId === currentRoom) setChat(prev => [...prev, data]);
-    });
-    setSocket(s);
-    return () => s.disconnect();
-  }, [view, token, currentRoom]);
-
-  // ルーム一覧とフレンド一覧取得
-  useEffect(() => {
-    if (view === 'chat' && token) {
-      axios.get(`${API}/rooms`, { headers: { Authorization: `Bearer ${token}` } })
-           .then(r => setRooms(
-             r.data
-              .filter(rm => rm.name !== 'General')
-              // 明示的に dm_ という名前の部屋は元から API が返さない想定ですが念のため
-              .filter(rm => !rm.name.startsWith('dm_'))
-           ));
-      axios.get(`${API}/friends`, { headers: { Authorization: `Bearer ${token}` } })
-           .then(r => setFriends(r.data));
-    }
-  }, [view, token]);
-
-  // フレンド一覧取得後に各 DM ルームID を先読み
-  useEffect(() => {
-    if (!socket || friends.length === 0) return;
-    friends.forEach((f, idx) => {
-      axios.post(`${API}/rooms/dm`, { peerId: f.id }, {
-        headers: { Authorization: `Bearer ${token}` }
-      }).then(r => {
-        setFriends(prev => {
-          const np = [...prev];
-          np[idx].dmId = r.data.id;
-          return np;
+  // 招待リンクがあればトークンで参加
+  useEffect(()=>{
+    if(view==='chat'&&token){
+      const url = new URL(window.location.href);
+      const inv = url.searchParams.get('invite');
+      if(inv){
+        axios.post(`${API}/rooms/join-by-token`,{ token:inv },{
+          headers:{ Authorization:`Bearer ${token}` }
+        })
+        .then(r=> setCurrentRoom(r.data.roomId))
+        .catch(console.error)
+        .finally(()=>{
+          url.searchParams.delete('invite');
+          window.history.replaceState({},'',url.toString());
         });
-      }).catch(() => {});
-    });
-  }, [friends, socket]);
+      }
+    }
+  },[view,token]);
 
-  // ルーム切替時：join & 履歴取得
-  useEffect(() => {
-    if (!socket || currentRoom == null) return;
-    socket.emit('joinRoom', currentRoom);
-    axios.get(`${API}/rooms/${currentRoom}/messages`, {
-      headers: { Authorization: `Bearer ${token}` }
-    }).then(r => setChat(r.data)).catch(console.error);
-  }, [currentRoom, socket, token]);
+  // Socket.io 接続
+  useEffect(()=>{
+    if(view==='chat'&&token){
+      const s = io(SOCKET, { auth:{ token }, transports:['websocket'] });
+      s.on('chatMessage',data=>{
+        if(data.roomId===currentRoom) setChat(prev=>[...prev,data]);
+      });
+      setSocket(s);
+      return()=>s.disconnect();
+    }
+  },[view,token,currentRoom]);
+
+  // ルーム & フレンド一覧取得
+  useEffect(()=>{
+    if(view==='chat'&&token){
+      axios.get(`${API}/rooms`,{headers:{Authorization:`Bearer ${token}`}})
+        .then(r=>setRooms(r.data.filter(r=>r.name!=='General')));
+      axios.get(`${API}/friends`,{headers:{Authorization:`Bearer ${token}`}})
+        .then(r=>setFriends(r.data.map(f=>({...f,dmId:null}))));
+    }
+  },[view,token]);
+
+  // フレンドDMルームID取得
+  useEffect(()=>{
+    if(socket&&friends.length){
+      friends.forEach((f,i)=>{
+        axios.post(`${API}/rooms/dm`,{ peerId:f.id },{
+          headers:{ Authorization:`Bearer ${token}` }
+        }).then(r=>{
+          setFriends(prev=>{
+            const a=[...prev]; a[i].dmId=r.data.id; return a;
+          });
+        }).catch(()=>{});
+      });
+    }
+  },[friends,socket,token]);
+
+  // ルーム切替時：join + 履歴 + invite token 取得
+  useEffect(()=>{
+    if(socket&&currentRoom!=null){
+      (async()=>{
+        socket.emit('joinRoom',currentRoom);
+        const msgRes = await axios.get(`${API}/rooms/${currentRoom}/messages`,{
+          headers:{ Authorization:`Bearer ${token}` }
+        });
+        setChat(msgRes.data);
+        const infoRes = await axios.get(`${API}/rooms/${currentRoom}`,{
+          headers:{ Authorization:`Bearer ${token}` }
+        });
+        setInviteToken(infoRes.data.invite_token);
+      })().catch(console.error);
+    }
+  },[currentRoom,socket,token]);
 
   // 自動スクロール
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chat]);
+  useEffect(()=>{
+    bottomRef.current?.scrollIntoView({ behavior:'smooth' });
+  },[chat]);
 
-  // メッセージリンクを自動アンカー化
-  const renderMessage = text => text.split(/(https?:\/\/[^\s]+)/g).map((part,i) =>
-    /^https?:\/\//.test(part)
-      ? <a key={i} href={part} target="_blank" rel="noopener noreferrer">{part}</a>
-      : part
+  // メッセージ表示用
+  const renderMessage = text => text.split(/(https?:\/\/[^\s]+)/g).map((p,i)=>
+    /^https?:\/\//.test(p)
+      ? <a key={i} href={p} target="_blank" rel="noopener noreferrer">{p}</a>
+      : p
   );
 
-  // 状態クリア
+  // Handlers
   const clearState = () => {
     setRooms([]); setCurrentRoom(null); setChat([]);
     socket?.disconnect(); setSocket(null);
   };
-
-  // --- Handlers ---
-  const handleLogin = async () => {
+  const handleLogin=async()=>{
     clearState();
-    try {
-      const { data } = await axios.post(`${API}/login`, {
-        username: loginUser, password: loginPw
+    try{
+      const { data } = await axios.post(`${API}/login`,{
+        username:loginUser,password:loginPw
       });
-      localStorage.setItem('token', data.token);
-      setToken(data.token);
-      setView('chat');
-    } catch (err) {
-      alert('ログイン失敗: ' + (err.response?.data?.error || err.message));
+      localStorage.setItem('token',data.token);
+      setToken(data.token); setView('chat');
+    }catch(e){
+      alert('ログイン失敗:'+ (e.response?.data?.error||e.message));
     }
   };
-
-  const handleRegister = async () => {
+  const handleRegister=async()=>{
     clearState();
-    try {
-      await axios.post(`${API}/register`, {
-        username: regUser, password: regPw, nickname: regNick
+    try{
+      await axios.post(`${API}/register`,{
+        username:regUser,password:regPw,nickname:regNick
       });
       alert('登録完了！ログインしてください');
       setView('login');
-    } catch (err) {
-      alert('登録失敗: ' + (err.response?.data?.error || err.message));
+    }catch(e){
+      alert('登録失敗:'+ (e.response?.data?.error||e.message));
     }
   };
-
-  const handleLogout = () => {
+  const handleLogout=()=>{
     localStorage.removeItem('token');
-    setView('login');
-    setToken(null);
+    setView('login'); setToken(null);
     clearState();
   };
-
-  const sendMessage = () => {
-    if (!msg || currentRoom == null) return;
-    socket.emit('chatMessage', { roomId: currentRoom, content: msg });
+  const sendMessage=()=>{
+    if(!msg||currentRoom==null) return;
+    socket.emit('chatMessage',{ roomId:currentRoom, content:msg });
     setMsg('');
   };
-
-  const createRoom = async () => {
+  const createRoom=async()=>{
     const name = prompt('新しいルーム名を入力');
-    if (!name) return;
-    const { data } = await axios.post(`${API}/rooms`, { name }, {
-      headers: { Authorization: `Bearer ${token}` }
+    if(!name) return;
+    const { data } = await axios.post(`${API}/rooms`,{ name },{
+      headers:{ Authorization:`Bearer ${token}` }
     });
-    setRooms(prev => [...prev, data]);
+    setRooms(prev=>[...prev,data]);
     setCurrentRoom(data.id);
   };
-
   const startDM = peerId => {
-    const fm = friends.find(f => f.id === peerId);
-    if (fm?.dmId) setCurrentRoom(fm.dmId);
+    const fm = friends.find(f=>f.id===peerId);
+    if(fm?.dmId) setCurrentRoom(fm.dmId);
   };
 
   // --- Render ---
-  if (view === 'login') {
+  if(view==='login'){
     return (
       <div className="form">
         <h2>ログイン</h2>
-        <input
-          placeholder="ユーザー名"
-          value={loginUser}
-          onChange={e => setLoginUser(e.target.value)}
-        /><br/>
-        <input
-          type="password"
-          placeholder="パスワード"
-          value={loginPw}
-          onChange={e => setLoginPw(e.target.value)}
-        /><br/>
+        <input placeholder="ユーザー名" value={loginUser}
+               onChange={e=>setLoginUser(e.target.value)}/><br/>
+        <input type="password" placeholder="パスワード" value={loginPw}
+               onChange={e=>setLoginPw(e.target.value)}/><br/>
         <button onClick={handleLogin}>ログイン</button>
         <p>アカウントがない方は
-          <button onClick={() => setView('register')}>登録</button>
+          <button onClick={()=>setView('register')}>登録</button>
         </p>
       </div>
     );
   }
-
-  if (view === 'register') {
+  if(view==='register'){
     return (
       <div className="form">
         <h2>会員登録</h2>
-        <input
-          placeholder="ユーザー名"
-          value={regUser}
-          onChange={e => setRegUser(e.target.value)}
-        /><br/>
-        <input
-          placeholder="ニックネーム"
-          value={regNick}
-          onChange={e => setRegNick(e.target.value)}
-        /><br/>
-        <input
-          type="password"
-          placeholder="パスワード"
-          value={regPw}
-          onChange={e => setRegPw(e.target.value)}
-        /><br/>
+        <input placeholder="ユーザー名" value={regUser}
+               onChange={e=>setRegUser(e.target.value)}/><br/>
+        <input placeholder="ニックネーム" value={regNick}
+               onChange={e=>setRegNick(e.target.value)}/><br/>
+        <input type="password" placeholder="パスワード" value={regPw}
+               onChange={e=>setRegPw(e.target.value)}/><br/>
         <button onClick={handleRegister}>登録</button>
         <p>アカウントがある方は
-          <button onClick={() => setView('login')}>ログイン</button>
+          <button onClick={()=>setView('login')}>ログイン</button>
         </p>
       </div>
     );
@@ -468,16 +469,13 @@ export default function App() {
   return (
     <div className="app-container">
       <header className="header">
-        <button onClick={() => setSidebar(o => !o)}>☰</button>
+        <button onClick={()=>setSidebar(o=>!o)}>☰</button>
         <h1>チャットルーム</h1>
         <div className="header-buttons">
-          <button onClick={() => setAccOpen(true)}>アカウント</button>
-          <button onClick={() => setFriendMgmtOpen(true)}>フレンド管理</button>
-          <button onClick={() => setSetOpen(true)}>設定</button>
-          <button
-            onClick={() => setInvOpen(true)}
-            disabled={currentRoom == null}
-          >
+          <button onClick={()=>setAccOpen(true)}>アカウント</button>
+          <button onClick={()=>setFriendMgmtOpen(true)}>フレンド管理</button>
+          <button onClick={()=>setSetOpen(true)}>設定</button>
+          <button onClick={()=>setInvOpen(true)} disabled={currentRoom==null}>
             招待
           </button>
           <button onClick={createRoom}>＋ルーム作成</button>
@@ -496,21 +494,30 @@ export default function App() {
         currentRoom={currentRoom}
       />
 
-      <main className={`main ${isSidebarOpen ? 'shifted' : ''}`}>
+      <main className={`main ${isSidebarOpen?'shifted':''}`}>
         <div className="chat-box">
-          {chat.map((c,i) => (
-            <div key={i}>
-              <strong>{c.nickname}</strong>: {renderMessage(c.content)}
+          {chat.map((c,i)=>(
+            <div key={i} className="message">
+              <img
+                src={c.icon_url||'/default-avatar.png'}
+                className="message-avatar"
+                alt="avatar"
+                onClick={()=>{ setUserDetailId(c.user_id); setUserDetailOpen(true); }}
+              />
+              <div className="message-body">
+                <div className="message-header">{c.nickname}</div>
+                <div className="message-text">{renderMessage(c.content)}</div>
+              </div>
             </div>
           ))}
-          <div ref={bottomRef} />
+          <div ref={bottomRef}/>
         </div>
         <div className="input-area">
           <input
             placeholder="メッセージを入力…"
             value={msg}
-            onChange={e => setMsg(e.target.value)}
-            onKeyDown={e => e.key==='Enter' && sendMessage()}
+            onChange={e=>setMsg(e.target.value)}
+            onKeyDown={e=>e.key==='Enter'&&sendMessage()}
           />
           <button onClick={sendMessage}>送信</button>
         </div>
@@ -518,25 +525,31 @@ export default function App() {
 
       <AccountOverlay
         isOpen={isAccOpen}
-        onClose={() => setAccOpen(false)}
+        onClose={()=>setAccOpen(false)}
         token={token}
-        onNicknameChange={() => {}}
+        onNicknameChange={()=>{}}
+        onIconChange={()=>{}}
+      />
+      <UserDetailOverlay
+        isOpen={isUserDetailOpen}
+        onClose={()=>setUserDetailOpen(false)}
+        token={token}
+        userId={userDetailId}
       />
       <SettingsOverlay
         isOpen={isSetOpen}
-        onClose={() => setSetOpen(false)}
+        onClose={()=>setSetOpen(false)}
         token={token}
-        applyTheme={t => setTheme(t)}
+        applyTheme={t=>setTheme(t)}
       />
       <InviteOverlay
         isOpen={isInvOpen}
-        onClose={() => setInvOpen(false)}
-        token={token}
-        roomId={currentRoom}
+        onClose={()=>setInvOpen(false)}
+        inviteToken={inviteToken}
       />
       <FriendOverlay
         isOpen={isFriendMgmtOpen}
-        onClose={() => setFriendMgmtOpen(false)}
+        onClose={()=>setFriendMgmtOpen(false)}
         token={token}
         onChat={startDM}
       />
