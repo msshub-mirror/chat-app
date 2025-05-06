@@ -1,16 +1,25 @@
-/* リセット */
-body,html,#root { margin:0; padding:0; height:100%; }
-.app-container { display:flex; height:100vh; font-family:Arial,sans-serif; }
+/* リセット & 背景 */
+body,html,#root {
+  margin:0; padding:0; height:100%;
+  background: var(--page-bg);
+}
+.app-container {
+  display:flex; height:100vh; font-family:Arial,sans-serif;
+}
 
 /* ヘッダー */
 .header {
   position:fixed; top:0; left:0; right:0; height:50px;
   display:flex; align-items:center; justify-content:space-between;
   padding:0 20px; z-index:1000;
-  background:var(--header-bg);
-  color:var(--header-color);
+  background:var(--header-bg); color:var(--header-color);
 }
-.header-buttons button { margin-left:8px; }
+.header-buttons button {
+  margin-left:8px;
+}
+.header-buttons button:disabled {
+  opacity:0.5; cursor:not-allowed;
+}
 
 /* サイドバー */
 .sidebar {
@@ -19,39 +28,35 @@ body,html,#root { margin:0; padding:0; height:100%; }
   transform:translateX(-200px); transition:transform .3s ease;
 }
 .sidebar.open { transform:translateX(0); }
-.sidebar button { width:100%; padding:10px; border:none; background:var(--btn-bg); color:var(--btn-color); cursor:pointer; }
+.sidebar button {
+  width:100%; padding:10px; border:none;
+  background:var(--btn-bg); color:var(--btn-color);
+  cursor:pointer;
+}
 .sidebar ul { list-style:none; margin:0; padding:0; }
-.sidebar li { padding:10px; cursor:pointer; color:var(--text-color); }
+.sidebar li {
+  padding:10px; cursor:pointer; color:var(--text-color);
+}
 .sidebar li.active { background:var(--btn-bg-active); }
 
 /* メイン */
-/* メイン領域を絶対配置に */
 .main {
-  position: absolute;
-  top: 50px;    /* ヘッダーの高さ */
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  transition: left .3s ease;
+  position:absolute;
+  top:50px; bottom:0; left:0; right:0;
+  display:flex; flex-direction:column; overflow:hidden;
+  transition:left .3s ease;
 }
-/* サイドバー開いたら左に200px余白を作る */
-.main.shifted {
-  left: 200px;
-}
+.main.shifted { left:200px; }
 
-/* チャット欄は幅100%に */
+/* チャット欄 */
 .chat-box {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px;
-  background: var(--chat-bg);
-  color: var(--text-color);
-  width: 100%;
+  flex:1; overflow-y:auto; padding:10px;
+  background:var(--chat-bg); color:var(--text-color);
+  width:100%;
 }
-
+.chat-box a {
+  color:var(--primary); text-decoration:underline;
+}
 .chat-box div { margin-bottom:8px; }
 
 /* 入力欄 */
@@ -59,12 +64,14 @@ body,html,#root { margin:0; padding:0; height:100%; }
   display:flex; padding:10px; background:var(--input-bg);
 }
 .input-area input {
-  flex:1; padding:8px; border:1px solid var(--border-color); border-radius:4px;
+  flex:1; padding:8px;
+  border:1px solid var(--border-color); border-radius:4px;
   background:var(--input-inner-bg); color:var(--text-color);
 }
 .input-area button {
   margin-left:8px; padding:8px 16px; border:none;
-  background:var(--btn-bg); color:var(--btn-color); border-radius:4px; cursor:pointer;
+  background:var(--btn-bg); color:var(--btn-color);
+  border-radius:4px; cursor:pointer;
 }
 
 /* オーバーレイ */
@@ -76,75 +83,53 @@ body,html,#root { margin:0; padding:0; height:100%; }
 }
 .modal {
   background:var(--modal-bg); padding:20px; border-radius:4px;
-  color:var(--text-color);
-  width:320px; max-width:90%;
+  color:var(--text-color); width:320px; max-width:90%;
 }
 
-/* フォーム */
-.form {
-  padding:20px; font-family:Arial,sans-serif;
-}
-
-/* テーマ共通変数 */
+/* テーマ変数デフォルト */
 :root {
-  --header-bg: #f5f5f5;
-  --header-color: #000;
-  --sidebar-bg: #eee;
-  --chat-bg: #fff;
-  --text-color: #000;
-  --btn-bg: #007bff;
-  --btn-color: #fff;
+  --header-bg: #f5f5f5; --header-color: #000;
+  --sidebar-bg: #eee;   --chat-bg: #fff;
+  --page-bg: #fff;      --text-color: #000;
+  --btn-bg: #007bff;    --btn-color: #fff;
   --btn-bg-active: #0056b3;
-  --input-bg: #fff;
-  --input-inner-bg: #fff;
-  --border-color: #ccc;
-  --modal-bg: #fff;
+  --input-bg: #fff;     --input-inner-bg: #fff;
+  --border-color: #ccc; --modal-bg: #fff;
+  --primary: #007bff;
 }
 
 /* LINE風 */
 .theme-line {
-  --header-bg: #00c300;
-  --header-color: #fff;
-  --sidebar-bg: #e5f9e7;
-  --chat-bg: #f0fcf2;
-  --text-color: #000;
-  --btn-bg: #00c300;
-  --btn-color: #fff;
+  --header-bg: #00c300; --header-color: #fff;
+  --sidebar-bg: #e5f9e7; --chat-bg: #f0fcf2;
+  --page-bg: #f0fcf2;    --text-color: #000;
+  --btn-bg: #00c300;     --btn-color: #fff;
   --btn-bg-active: #017700;
-  --input-bg: #f0fcf2;
-  --input-inner-bg: #fff;
-  --border-color: #b6e8b8;
-  --modal-bg: #fff;
+  --input-bg: #f0fcf2;   --input-inner-bg: #fff;
+  --border-color: #b6e8b8; --modal-bg: #fff;
+  --primary: #00c300;
 }
 
 /* Discord風 */
 .theme-discord {
-  --header-bg: #2f3136;
-  --header-color: #fff;
-  --sidebar-bg: #202225;
-  --chat-bg: #36393f;
-  --text-color: #dcddde;
-  --btn-bg: #5865f2;
-  --btn-color: #fff;
+  --header-bg: #2f3136; --header-color: #fff;
+  --sidebar-bg: #202225; --chat-bg: #36393f;
+  --page-bg: #36393f;    --text-color: #dcddde;
+  --btn-bg: #5865f2;     --btn-color: #fff;
   --btn-bg-active: #4752c4;
-  --input-bg: #40444b;
-  --input-inner-bg: #36393f;
-  --border-color: #202225;
-  --modal-bg: #40444b;
+  --input-bg: #40444b;   --input-inner-bg: #36393f;
+  --border-color: #202225; --modal-bg: #40444b;
+  --primary: #7289da;
 }
 
 /* X風 */
 .theme-x {
-  --header-bg: #1da1f2;
-  --header-color: #fff;
-  --sidebar-bg: #e8f5fd;
-  --chat-bg: #f5f8fa;
-  --text-color: #14171a;
-  --btn-bg: #1da1f2;
-  --btn-color: #fff;
+  --header-bg: #1da1f2; --header-color: #fff;
+  --sidebar-bg: #e8f5fd; --chat-bg: #f5f8fa;
+  --page-bg: #f5f8fa;    --text-color: #14171a;
+  --btn-bg: #1da1f2;     --btn-color: #fff;
   --btn-bg-active: #0d95e8;
-  --input-bg: #fff;
-  --input-inner-bg: #fff;
-  --border-color: #aab8c2;
-  --modal-bg: #fff;
+  --input-bg: #fff;      --input-inner-bg: #fff;
+  --border-color: #aab8c2; --modal-bg: #fff;
+  --primary: #1da1f2;
 }
