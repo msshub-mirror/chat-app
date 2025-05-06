@@ -82,6 +82,47 @@ const generalId = rs[0].id
   }
 })
 
+// DM ルームID として "dm_<小さい方>_<大きい方>"
+const makeDmRoomId = (a,b) => {
+  const [u1,u2] = a<b?[a,b]:[b,a];
+  return `dm_${u1}_${u2}`;
+};
+
+// DM 履歴取得
+app.get('/api/rooms/:roomId/messages', auth, async (req, res) => {
+  const { roomId } = req.params;
+  if (roomId.startsWith('dm_')) {
+    // dm_{u1}_{u2}
+    const [ , s1,s2 ] = roomId.match(/^dm_(\d+)_(\d+)$/);
+    const u1 = Number(s1), u2 = Number(s2);
+    // 自分が当事者かチェック
+    if (![u1,u2].includes(req.userId)) {
+      return res.status(403).json({ error:'閲覧権限なし' });
+    }
+    // participants テーブルは使わず、friendships でチェック
+    const { rows: fr } = await pool.query(
+      'SELECT 1 FROM friendships WHERE user1=$1 AND user2=$2',
+      [u1,u2]
+    );
+    if (!fr.length) {
+      return res.status(403).json({ error:'友達のみ閲覧可' });
+    }
+    // messages テーブルに room_type="dm" and room_id=roomId などのカラムがある前提
+    const { rows } = await pool.query(
+      `SELECT u.nickname,m.content,m.created_at
+       FROM messages m
+       JOIN users u ON u.id=m.user_id
+       WHERE m.room_type = 'dm' AND m.room_id = $1
+       ORDER BY m.created_at ASC`,
+      [roomId]
+    );
+    return res.json(rows);
+  }
+  // 既存の group chat
+  // …
+});
+
+
 // ログイン
 app.post('/api/login', async (req, res) => {
   try {
