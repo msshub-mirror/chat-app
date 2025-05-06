@@ -3,8 +3,8 @@ import React, { useState, useEffect, useRef } from 'react'
 import io from 'socket.io-client'
 import axios from 'axios'
 
-const API    = 'http://localhost:4000/api'
-const SOCKET = 'http://localhost:4000'
+const API    = 'https://chat-app-backend-rqh4.onrender.com/api'
+const SOCKET = 'https://chat-app-backend-rqh4.onrender.com'
 
 // 共通オーバーレイ
 function Overlay({ isOpen, onClose, children }) {
