@@ -54,10 +54,19 @@ app.post('/api/register', async (req, res) => {
     )
     const userId = rows[0].id
     // デフォルトルーム"General"に参加
-    const { rows: rs } = await client.query(
-      `SELECT id FROM rooms WHERE name='General' LIMIT 1`
-    )
-    const generalId = rs[0].id
+    // SELECT の前に…
+await client.query(
+  `INSERT INTO rooms(name, created_by)
+   SELECT 'General', 0
+   WHERE NOT EXISTS (SELECT 1 FROM rooms WHERE name='General')`
+)
+
+// その後で id を取る
+const { rows: rs } = await client.query(
+  `SELECT id FROM rooms WHERE name='General' LIMIT 1`
+)
+const generalId = rs[0].id
+
     await client.query(
       'INSERT INTO participants(room_id,user_id) VALUES($1,$2)',
       [generalId, userId]
