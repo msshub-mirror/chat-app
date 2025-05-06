@@ -92,45 +92,67 @@ const generalId = rs[0].id
   }
 })
 
-// DM ルームID として "dm_<小さい方>_<大きい方>"
-const makeDmRoomId = (a,b) => {
-  const [u1,u2] = a<b?[a,b]:[b,a];
-  return `dm_${u1}_${u2}`;
-};
-
-// DM 履歴取得
-app.get('/api/rooms/:roomId/messages', auth, async (req, res) => {
-  const { roomId } = req.params;
-  if (roomId.startsWith('dm_')) {
-    // dm_{u1}_{u2}
-    const [ , s1,s2 ] = roomId.match(/^dm_(\d+)_(\d+)$/);
-    const u1 = Number(s1), u2 = Number(s2);
-    // 自分が当事者かチェック
-    if (![u1,u2].includes(req.userId)) {
-      return res.status(403).json({ error:'閲覧権限なし' });
-    }
-    // participants テーブルは使わず、friendships でチェック
-    const { rows: fr } = await pool.query(
-      'SELECT 1 FROM friendships WHERE user1=$1 AND user2=$2',
-      [u1,u2]
-    );
-    if (!fr.length) {
-      return res.status(403).json({ error:'友達のみ閲覧可' });
-    }
-    // messages テーブルに room_type="dm" and room_id=roomId などのカラムがある前提
-    const { rows } = await pool.query(
-      `SELECT u.nickname,m.content,m.created_at
-       FROM messages m
-       JOIN users u ON u.id=m.user_id
-       WHERE m.room_type = 'dm' AND m.room_id = $1
-       ORDER BY m.created_at ASC`,
-      [roomId]
-    );
-    return res.json(rows);
+// — DMルーム作成 or 取得 —
+app.post('/api/rooms/dm', auth, async (req, res) => {
+  const peerId = req.body.peerId
+  const u1 = Math.min(req.userId, peerId)
+  const u2 = Math.max(req.userId, peerId)
+  // 友達かチェック
+  const fr = await pool.query(
+    'SELECT 1 FROM friendships WHERE user1=$1 AND user2=$2',
+    [u1, u2]
+  )
+  if (!fr.rows.length) {
+    return res.status(403).json({ error:'友達のみDM可' })
   }
-  // 既存の group chat
-  // …
-});
+  const roomName = `dm_${u1}_${u2}`
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    // 既存ルームがあれば取得、なければ作成
+    const { rows: ex } = await client.query(
+      'SELECT id FROM rooms WHERE name=$1',
+      [roomName]
+    )
+    let roomId
+    if (ex.length) {
+      roomId = ex[0].id
+    } else {
+      const { rows: ins } = await client.query(
+        'INSERT INTO rooms(name,created_by) VALUES($1,$2) RETURNING id',
+        [roomName, u1]
+      )
+      roomId = ins[0].id
+      await client.query(
+        'INSERT INTO participants(room_id,user_id) VALUES($1,$2),($1,$3)',
+        [roomId, u1, u2]
+      )
+    }
+    await client.query('COMMIT')
+    res.json({ id: roomId })
+  } catch (e) {
+    await client.query('ROLLBACK')
+    console.error(e)
+    res.status(500).json({ error:'DMルーム作成失敗' })
+  } finally {
+    client.release()
+  }
+})
+
+// — メッセージ履歴取得（グループ＋DM共通） —
+app.get('/api/rooms/:roomId/messages', auth, async (req, res) => {
+  const { roomId } = req.params
+  const { rows } = await pool.query(
+    `SELECT u.nickname, m.content, m.created_at
+     FROM messages m
+     JOIN users u ON u.id=m.user_id
+     WHERE m.room_id=$1
+     ORDER BY m.created_at ASC
+     LIMIT 100`,
+    [roomId]
+  )
+  res.json(rows)
+})
 
 
 // ログイン
@@ -392,14 +414,11 @@ app.get('/api/friends', auth, async (req, res) => {
 });
 
 
-// --- Socket.io ---
+// — Socket.io —
 io.use((socket, next) => {
   try {
-    const p = jwt.verify(
-      socket.handshake.auth.token,
-      process.env.JWT_SECRET
-    )
-    socket.userId   = p.userId
+    const p = jwt.verify(socket.handshake.auth.token, process.env.JWT_SECRET)
+    socket.userId = p.userId
     socket.nickname = p.nickname
     next()
   } catch {
@@ -407,11 +426,10 @@ io.use((socket, next) => {
   }
 })
 
-io.on('connection', (socket) => {
-  console.log(`🔌 ${socket.nickname} connected`)
+io.on('connection', socket => {
+  console.log(`🔌 user ${socket.userId} connected`)
 
-  // ルーム参加
-  socket.on('joinRoom', async (roomId) => {
+  socket.on('joinRoom', async roomId => {
     const { rows } = await pool.query(
       'SELECT 1 FROM participants WHERE room_id=$1 AND user_id=$2',
       [roomId, socket.userId]
@@ -419,11 +437,10 @@ io.on('connection', (socket) => {
     if (rows.length) {
       socket.join(`room_${roomId}`)
     } else {
-      socket.emit('errorMessage', 'このルームには参加していません')
+      socket.emit('errorMessage','参加権限がありません')
     }
   })
 
-  // メッセージ受信・保存・配信
   socket.on('chatMessage', async ({ roomId, content }) => {
     await pool.query(
       'INSERT INTO messages(user_id,room_id,content) VALUES($1,$2,$3)',
@@ -433,17 +450,12 @@ io.on('connection', (socket) => {
       'SELECT nickname FROM users WHERE id=$1',
       [socket.userId]
     )
-    const nickname = rows[0].nickname
     io.to(`room_${roomId}`).emit('chatMessage', {
-      nickname,
+      nickname: rows[0].nickname,
       content,
       roomId,
       created_at: new Date()
     })
-  })
-
-  socket.on('disconnect', () => {
-    console.log(`❎ ${socket.nickname} disconnected`)
   })
 })
 
