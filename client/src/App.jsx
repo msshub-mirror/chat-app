@@ -466,7 +466,8 @@ export default function App() {
   ]}
   currentRoom={currentRoom}
   onRoomChange={id => {
-    if (id.startsWith('dm_')) {
+    const sid = String(id)
+    if (sid.startsWith('dm_')) {
       const peerId = Number(id.split('_')[1]);
       setCurrentRoom(id);
       // direct message 履歴は /api/rooms/dm_{peerId} で取得できるようサーバー実装要
