@@ -214,26 +214,44 @@ function FriendOverlay({ isOpen, onClose, token, onChat }) {
 function Sidebar({ isOpen, rooms, friends, friendsOpen, setFriendsOpen, onRoomChange, onCreateRoom, currentRoom }) {
   return (
     <nav className={`sidebar ${isOpen ? 'open' : ''}`}>
-      <button onClick={onCreateRoom}>＋ルーム作成</button>
-      <ul>
-        {rooms.map(r => (
-          <li key={r.id}
+      {/* 上部：ルーム作成ボタン + ルーム一覧 */}
+      <div className="sidebar-content">
+        <button onClick={onCreateRoom}>＋ルーム作成</button>
+        <ul className="rooms-list">
+          {rooms.map(r => (
+            <li
+              key={r.id}
               className={r.id === currentRoom ? 'active' : ''}
-              onClick={() => onRoomChange(r.id)}>
-            {r.name}
-          </li>
-        ))}
-        <li className="header" onClick={() => setFriendsOpen(o => !o)}>
-          フレンドチャット {friendsOpen ? '▼' : '▶'}
-        </li>
-        {friendsOpen && friends.map(f => (
-          <li key={f.id}
-              className={currentRoom === f.dmId ? 'active' : ''}
-              onClick={() => onRoomChange(f.dmId)}>
-            {f.nickname}
-          </li>
-        ))}
-      </ul>
+              onClick={() => onRoomChange(r.id)}
+            >
+              {r.name}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* 下部：フレンドセクション */}
+      <div className="friends-section">
+        <div
+          className="friends-toggle"
+          onClick={() => setFriendsOpen(o => !o)}
+        >
+          フレンドチャット {friendsOpen ? '▼' : '▶︎'}
+        </div>
+        {friendsOpen && (
+          <ul className="friends-list">
+            {friends.map(f => (
+              <li
+                key={f.id}
+                className={f.dmId === currentRoom ? 'active' : ''}
+                onClick={() => onRoomChange(f.dmId)}
+              >
+                {f.nickname}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </nav>
   );
 }
