@@ -141,6 +141,83 @@ function InviteOverlay({ isOpen, onClose, token, roomId }) {
     </Overlay>
   )
 }
+// --- 友だち管理オーバーレイ ---
+function FriendOverlay({ isOpen, onClose, token }) {
+  const [username, setUsername] = useState('');
+  const [incoming, setIncoming] = useState([]);
+  
+  // 受信中申請を取得
+  useEffect(() => {
+    if (isOpen) {
+      axios.get(`${API}/friend-requests`, {
+        headers:{ Authorization:`Bearer ${token}` }
+      }).then(r => setIncoming(r.data));
+    }
+  }, [isOpen, token]);
+
+  const sendRequest = async () => {
+    try {
+      await axios.post(`${API}/friend-requests`,
+        { username },
+        { headers:{ Authorization:`Bearer ${token}` } }
+      );
+      alert('申請を送信しました');
+      setUsername('');
+    } catch (err) {
+      alert(err.response?.data?.error || err.message);
+    }
+  };
+
+  const respond = async (id, accept) => {
+    try {
+      if (accept) {
+        await axios.put(`${API}/friend-requests/${id}/accept`, {},
+          { headers:{ Authorization:`Bearer ${token}` } }
+        );
+      } else {
+        await axios.delete(`${API}/friend-requests/${id}`, {
+          headers:{ Authorization:`Bearer ${token}` }
+        });
+      }
+      // 再取得
+      const { data } = await axios.get(`${API}/friend-requests`, {
+        headers:{ Authorization:`Bearer ${token}` }
+      });
+      setIncoming(data);
+    } catch (err) {
+      alert(err.response?.data?.error || err.message);
+    }
+  };
+
+  return (
+    <Overlay isOpen={isOpen} onClose={onClose}>
+      <h2>フレンド管理</h2>
+      <div>
+        <h3>フレンド申請を送る</h3>
+        <input
+          placeholder="ユーザー名を入力"
+          value={username}
+          onChange={e => setUsername(e.target.value)}
+        />
+        <button onClick={sendRequest}>送信</button>
+      </div>
+      <div style={{ marginTop:20 }}>
+        <h3>受信中の申請</h3>
+        {incoming.length
+          ? incoming.map(req => (
+              <div key={req.id} className="friend-request">
+                <span>{req.nickname} (@{req.username}) が申請</span>
+                <button onClick={()=>respond(req.id,true)}>承認</button>
+                <button onClick={()=>respond(req.id,false)}>無視</button>
+              </div>
+            ))
+          : <p>申請はありません</p>
+        }
+      </div>
+    </Overlay>
+  )
+}
+
 
 // サイドバー
 function Sidebar({ isOpen, rooms, currentRoom, onRoomChange, onCreateRoom }) {
@@ -180,6 +257,8 @@ export default function App() {
   const [isSetOpen, setSetOpen]       = useState(false)
   const [isInvOpen, setInvOpen]       = useState(false)
   const [theme, setTheme]             = useState(localStorage.getItem('theme')||'line')
+  const [isFriendOpen, setFriendOpen] = useState(false);
+  const [friends, setFriends] = useState([]);
 
   const bottomRef      = useRef(null)
   const currentRoomRef = useRef(currentRoom)
@@ -257,6 +336,14 @@ export default function App() {
   useEffect(()=>{
     bottomRef.current?.scrollIntoView({ behavior:'smooth' })
   },[chat])
+
+  useEffect(() => {
+  if (view==='chat' && token) {
+    axios.get(`${API}/friends`, {
+      headers:{ Authorization:`Bearer ${token}` }
+    }).then(r => setFriends(r.data));
+  }
+}, [view, token]);
 
   // メッセージ内のリンクをアンカーに変換
   const renderMessage = text => {
@@ -357,6 +444,7 @@ export default function App() {
         <h1>チャットルーム</h1>
         <div className="header-buttons">
           <button onClick={()=>setAccOpen(true)}>アカウント</button>
+          <button onClick={()=>setFriendOpen(true)}>フレンド管理</button>
           <button onClick={()=>setSetOpen(true)}>設定</button>
           <button
             onClick={()=>currentRoom && setInvOpen(true)}
@@ -370,12 +458,24 @@ export default function App() {
       </header>
 
       <Sidebar
-        isOpen={isSidebarOpen}
-        rooms={rooms}
-        currentRoom={currentRoom}
-        onRoomChange={setCurrentRoom}
-        onCreateRoom={handleCreateRoom}
-      />
+  isOpen={isSidebarOpen}
+  rooms={[
+    ...rooms,
+    { id: 'friends', name: '=== Friends ===', isHeader:true },
+    ...friends.map(f => ({ id:`dm_${f.id}`, name:f.nickname }))
+  ]}
+  currentRoom={currentRoom}
+  onRoomChange={id => {
+    if (id.startsWith('dm_')) {
+      const peerId = Number(id.split('_')[1]);
+      setCurrentRoom(id);
+      // direct message 履歴は /api/rooms/dm_{peerId} で取得できるようサーバー実装要
+    } else {
+      setCurrentRoom(id);
+    }
+  }}
+  onCreateRoom={handleCreateRoom}
+/>
 
       <main className={`main ${isSidebarOpen?'shifted':''}`}>
         <div className="chat-box">
@@ -415,6 +515,11 @@ export default function App() {
         token={token}
         roomId={currentRoom}
       />
+      <FriendOverlay
+  isOpen={isFriendOpen}
+  onClose={()=>setFriendOpen(false)}
+  token={token}
+/>
     </div>
   )
 }
