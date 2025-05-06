@@ -273,15 +273,22 @@ export default function App() {
   }
 
   // ハンドラ
-  const handleLogin = async () => {
-    clearState()
+  async function handleLogin() {
+  clearState();
+  try {
     const { data } = await axios.post(`${API}/login`, {
-      username:loginUser, password:loginPw
-    })
-    localStorage.setItem('token', data.token)
-    setToken(data.token)
-    setView('chat')
+      username: loginUser,
+      password: loginPw
+    });
+    localStorage.setItem('token', data.token);
+    setToken(data.token);
+    setView('chat');
+  } catch (err) {
+    console.error('Login failed:', err);
+    alert('ログインに失敗しました: ' + (err.response?.data?.error || err.message));
   }
+}
+
   const handleRegister = async () => {
     await axios.post(`${API}/register`, {
       username:regUser, password:regPw, nickname:regNick
