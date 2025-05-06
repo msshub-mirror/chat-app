@@ -6,11 +6,22 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { Pool } = require('pg');
 const cors = require('cors');
+const multer = require('multer');
+const { v4: uuidv4 } = require('uuid');
 
 const app    = express();
 const server = http.createServer(app);
 const FRONTEND_URL = process.env.FRONTEND_URL;
 const pool   = new Pool({ connectionString: process.env.DATABASE_URL });
+
+const storage = multer.diskStorage({
+   destination: (_req, _file, cb) => cb(null, 'uploads'),
+   filename: (_req, file, cb) => cb(null, uuidv4() + '-' + file.originalname)
+ });
+ const upload = multer({ storage });
+
+ // 画像を配信
+ app.use('/uploads', express.static('uploads'));
 
 // CORS
 const allowed = ['http://localhost:3000', FRONTEND_URL];
@@ -113,7 +124,7 @@ app.post('/api/login', async (req, res) => {
 // --- 自分情報取得 ---
 app.get('/api/me', auth, async (req, res) => {
   const { rows } = await pool.query(
-    'SELECT username,nickname FROM users WHERE id=$1',
+    'SELECT username,nickname,avatar_url FROM users WHERE id=$1',
     [req.userId]
   );
   res.json(rows[0]);
@@ -198,11 +209,18 @@ app.post('/api/rooms/:roomId/join', auth, async (req, res) => {
   );
   res.sendStatus(204);
 });
+app.post('/api/me/avatar', auth, upload.single('avatar'), async (req, res) => {
+  const url = req.file ? `/uploads/${req.file.filename}` : null;
+  if (!url) return res.status(400).json({ error: 'ファイルがありません' });
+  await pool.query('UPDATE users SET avatar_url=$1 WHERE id=$2', [url, req.userId]);
+  res.json({ avatar_url: url });
+});
+
 
 // --- メッセージ履歴取得（グループ＆DM共通） ---
 app.get('/api/rooms/:roomId/messages', auth, async (req, res) => {
   const { rows } = await pool.query(
-    `SELECT u.nickname,m.content,m.created_at
+    `SELECT u.nickname, u.avatar_url, m.content, m.created_at
      FROM messages m
      JOIN users u ON u.id = m.user_id
      WHERE m.room_id = $1
