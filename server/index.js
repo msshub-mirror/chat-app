@@ -250,6 +250,96 @@ app.get(
     res.json(rows)
   }
 )
+// --- 友だち申請作成 ---
+app.post('/api/friend-requests', auth, async (req, res) => {
+  const { username } = req.body;
+  const { rows } = await pool.query(
+    'SELECT id FROM users WHERE username=$1',
+    [username]
+  );
+  if (!rows[0]) return res.status(404).json({ error: 'ユーザーが存在しません' });
+  const recipient = rows[0].id;
+  if (recipient === req.userId) return res.status(400).json({ error:'自分には申請できません' });
+  try {
+    await pool.query(
+      `INSERT INTO friend_requests(requester,recipient) VALUES($1,$2)`,
+      [req.userId, recipient]
+    );
+    res.sendStatus(201);
+  } catch (e) {
+    if (e.code === '23505') return res.status(400).json({ error:'既に申請済みです' });
+    throw e;
+  }
+});
+
+// --- 受信中の申請一覧取得 ---
+app.get('/api/friend-requests', auth, async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT fr.id, u.id AS requester_id, u.username, u.nickname, fr.created_at
+     FROM friend_requests fr
+     JOIN users u ON u.id=fr.requester
+     WHERE fr.recipient=$1 AND fr.status='pending'
+     ORDER BY fr.created_at ASC`,
+    [req.userId]
+  );
+  res.json(rows);
+});
+
+// --- 申請を承認 ---
+app.put('/api/friend-requests/:id/accept', auth, async (req, res) => {
+  const { id } = req.params;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      'SELECT requester,recipient FROM friend_requests WHERE id=$1 AND recipient=$2 AND status=$3',
+      [id, req.userId, 'pending']
+    );
+    if (!rows[0]) return res.status(404).json({ error:'申請が見つからないか、権限がありません' });
+    const { requester, recipient } = rows[0];
+    // 双方向に friendship 登録
+    const [u1, u2] = requester < recipient ? [requester, recipient] : [recipient, requester];
+    await client.query(
+      'INSERT INTO friendships(user1,user2) VALUES($1,$2) ON CONFLICT DO NOTHING',
+      [u1, u2]
+    );
+    // リクエストをクローズ
+    await client.query(
+      'UPDATE friend_requests SET status=$1 WHERE id=$2',
+      ['accepted', id]
+    );
+    await client.query('COMMIT');
+    res.sendStatus(204);
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
+});
+
+// --- 申請を無視 (削除) ---
+app.delete('/api/friend-requests/:id', auth, async (req, res) => {
+  const { id } = req.params;
+  await pool.query(
+    'DELETE FROM friend_requests WHERE id=$1 AND recipient=$2',
+    [id, req.userId]
+  );
+  res.sendStatus(204);
+});
+
+// --- 友だち一覧取得 ---
+app.get('/api/friends', auth, async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT u.id, u.username, u.nickname
+     FROM friendships f
+     JOIN users u ON (u.id = CASE WHEN f.user1=$1 THEN f.user2 ELSE f.user1 END)
+     WHERE f.user1=$1 OR f.user2=$1`,
+    [req.userId]
+  );
+  res.json(rows);
+});
+
 
 // --- Socket.io ---
 io.use((socket, next) => {
