@@ -223,20 +223,22 @@ function FriendOverlay({ isOpen, onClose, token }) {
 function Sidebar({ isOpen, rooms, currentRoom, onRoomChange, onCreateRoom }) {
   return (
     <nav className={`sidebar ${isOpen?'open':''}`}>
-      <button onClick={onRoomChange ? onCreateRoom : undefined}>
-        ＋ルーム作成
-      </button>
+      <button onClick={onCreateRoom}>＋ルーム作成</button>
       <ul>
-        {rooms.map(r=>(
-          <li key={r.id}
-              className={r.id===currentRoom?'active':''}
-              onClick={()=>onRoomChange(r.id)}>
-            {r.name}
-          </li>
+        {rooms.map(r => (
+          r.isHeader
+            ? <li key={r.id} className="header">{r.name}</li>
+            : <li
+                key={r.id}
+                className={r.id === currentRoom ? 'active' : ''}
+                onClick={() => onRoomChange(r.id)}
+              >
+                {r.name}
+              </li>
         ))}
       </ul>
     </nav>
-  )
+  );
 }
 
 export default function App() {
@@ -406,6 +408,14 @@ export default function App() {
     setRooms(prev=>prev.concat(data))
     setCurrentRoom(data.id)
   }
+  const handleRoomChange = (id) => {
+  // ヘッダー文字列やフレンド一覧用のIDは無視
+  if (typeof id === 'string' && !id.startsWith('dm_')) {
+    return;
+  }
+  // DMルーム (文字列) か、通常ルーム (数値)
+  setCurrentRoom(id);
+};
 
   // レンダリング
   if(view==='login') {
