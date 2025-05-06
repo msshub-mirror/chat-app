@@ -10,6 +10,10 @@ const cors = require('cors')
 const app = express()
 const server = http.createServer(app)
 const FRONTEND_URL = process.env.FRONTEND_URL;  // Render の環境変数で設定しておく
+const allowed = [
+  'http://localhost:3000',
+  process.env.FRONTEND_URL,       // Render などに設定した本番フロントのURL
+];
 const io = new Server(server, {
   cors: {
     origin:  [ 'http://localhost:3000', FRONTEND_URL ],
@@ -20,7 +24,13 @@ const io = new Server(server, {
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 
-app.use(cors())
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || allowed.includes(origin)) return cb(null, true);
+    cb(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+}));
 app.use(express.json())
 
 // 認証ミドルウェア
