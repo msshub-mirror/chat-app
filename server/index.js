@@ -9,9 +9,15 @@ const cors = require('cors')
 
 const app = express()
 const server = http.createServer(app)
+const FRONTEND_URL = process.env.FRONTEND_URL;  // Render の環境変数で設定しておく
 const io = new Server(server, {
-  cors: { origin: 'https://chat-app-backend-rqh4.onrender.com', methods: ['GET','POST'] }
-})
+  cors: {
+    origin:  [ 'http://localhost:3000', FRONTEND_URL ],
+    methods: ['GET','POST'],
+    credentials: true
+  }
+});
+
 const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 
 app.use(cors())
