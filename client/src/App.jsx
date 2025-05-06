@@ -288,7 +288,6 @@ export default function App() {
   const [isFriendMgmtOpen,setFriendMgmtOpen]=useState(false);
   const [userDetailId,setUserDetailId]=useState(null);
   const [isUserDetailOpen,setUserDetailOpen]=useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const bottomRef = useRef(null);
 
