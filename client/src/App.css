@@ -21,23 +21,97 @@ body,html,#root {
   opacity:0.5; cursor:not-allowed;
 }
 
-/* サイドバー */
+/* 既存のCSSはそのまま… */
+
+/* ■ サイドバー全体を上下に分割 */
 .sidebar {
-  position:fixed; top:50px; bottom:0; left:0; width:200px;
-  background:var(--sidebar-bg); overflow-y:auto;
-  transform:translateX(-200px); transition:transform .3s ease;
+  position: fixed;
+  top: 50px;
+  bottom: 0;
+  left: 0;
+  width: 200px;
+  background: var(--sidebar-bg);
+  display: flex;
+  flex-direction: column;
+  /* overflow: hidden; */
+  transform: translateX(-200px);
+  transition: transform .3s ease;
 }
-.sidebar.open { transform:translateX(0); }
-.sidebar button {
-  width:100%; padding:10px; border:none;
-  background:var(--btn-bg); color:var(--btn-color);
-  cursor:pointer;
+.sidebar.open {
+  transform: translateX(0);
 }
-.sidebar ul { list-style:none; margin:0; padding:0; }
-.sidebar li {
-  padding:10px; cursor:pointer; color:var(--text-color);
+
+/* ルーム一覧部分をスクロール可能に */
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 10px; /* 下部に余白 */
 }
-.sidebar li.active { background:var(--btn-bg-active); }
+.rooms-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.rooms-list li {
+  padding: 10px;
+  cursor: pointer;
+  color: var(--text-color);
+}
+.rooms-list li.active {
+  background: var(--btn-bg-active);
+}
+
+/* フレンドセクション：最下部に固定 */
+.friends-section {
+  position: relative;
+  /* 下部にぴったり寄せたいならこのmargin不要 */
+  /* margin-top: auto; */
+  padding: 10px 0;
+  border-top: 1px solid var(--border-color);
+}
+
+/* トグルボタン */
+.friends-toggle {
+  padding: 10px;
+  cursor: pointer;
+  color: var(--text-color);
+  user-select: none;
+}
+.friends-toggle:hover {
+  background: var(--btn-bg-active);
+  color: var(--btn-color);
+}
+
+/* フレンド一覧（オーバーレイ表示） */
+.friends-list {
+  position: absolute;
+  bottom: 100%; /* トグルの上に展開 */
+  left: 0;
+  right: 0;
+  max-height: 200px; /* 必要に応じて調整 */
+  overflow-y: auto;
+  background: var(--sidebar-bg);
+  border: 1px solid var(--border-color);
+  z-index: 100; /* ルームリストの上に重ねる */
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.friends-list li {
+  padding: 10px;
+  cursor: pointer;
+  color: var(--text-color);
+}
+.friends-list li.active {
+  background: var(--btn-bg-active);
+}
+.friends-list li:hover {
+  background: var(--btn-bg-active);
+  color: var(--btn-color);
+}
+
+/* 既存の他のCSS… */
+
 
 /* メイン */
 .main {
