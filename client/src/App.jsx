@@ -6,8 +6,8 @@ import './App.css';
 // 追加: デフォルトアバター
 const DEFAULT_AVATAR = 'https://placehold.co/40x40?text=👤';
 
-const API    = 'https://chat-app-backend-rqh4.onrender.com/api';
-const SOCKET = 'https://chat-app-backend-rqh4.onrender.com';
+const API    = 'https://dev-chat-app-backend.onrender.com/api';
+const SOCKET = 'https://dev-chat-app-backend.onrender.com/';
 
 /* ===================== 共通オーバーレイ ===================== */
 function Overlay({ isOpen, onClose, children }) {
