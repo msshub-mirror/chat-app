@@ -445,6 +445,7 @@ export default function App() {
   }
 
   return (
+    <>
     <div className="app-container">
       {/* ---------- ヘッダー ---------- */}
       <header className="header">
@@ -527,12 +528,11 @@ export default function App() {
         token={token}
         onChat={startDM}
       />
-    </div>
       <UserDetailOverlay
         isOpen={!!detailUser}
         onClose={() => setDetailUser(null)}
         user={detailUser}
       />
-    </div>
+    </>
   );
 }
