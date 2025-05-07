@@ -8,6 +8,7 @@ const { Pool } = require('pg');
 const cors = require('cors');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
+const fs = require('fs');
 
 const app    = express();
 const server = http.createServer(app);
@@ -19,6 +20,8 @@ const storage = multer.diskStorage({
    filename: (_req, file, cb) => cb(null, uuidv4() + '-' + file.originalname)
  });
  const upload = multer({ storage });
+
+fs.mkdirSync('uploads', { recursive: true });   // 無ければ作る
 
  // 画像を配信
  app.use('/uploads', express.static('uploads'));
