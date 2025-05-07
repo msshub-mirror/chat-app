@@ -528,6 +528,7 @@ export default function App() {
         token={token}
         onChat={startDM}
       />
+      </div>
       <UserDetailOverlay
         isOpen={!!detailUser}
         onClose={() => setDetailUser(null)}
