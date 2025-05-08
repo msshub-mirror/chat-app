@@ -14,6 +14,7 @@ const app    = express();
 const server = http.createServer(app);
 const FRONTEND_URL = process.env.FRONTEND_URL;
 const pool   = new Pool({ connectionString: process.env.DATABASE_URL });
+const PUBLIC_URL = process.env.PUBLIC_URL || 'https://chat-app-backend-rqh4.onrender.com';
 
 const storage = multer.diskStorage({
    destination: (_req, _file, cb) => cb(null, 'uploads'),
@@ -213,7 +214,7 @@ app.post('/api/rooms/:roomId/join', auth, async (req, res) => {
   res.sendStatus(204);
 });
 app.post('/api/me/avatar', auth, upload.single('avatar'), async (req, res) => {
-  const url = req.file ? `/uploads/${req.file.filename}` : null;
+  const url = `${PUBLIC_URL}/uploads/${req.file.filename}`; // ← 絶対
   if (!url) return res.status(400).json({ error: 'ファイルがありません' });
   await pool.query('UPDATE users SET avatar_url=$1 WHERE id=$2', [url, req.userId]);
   res.json({ avatar_url: url });
