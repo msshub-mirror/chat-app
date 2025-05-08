@@ -8,6 +8,10 @@ const DEFAULT_AVATAR = 'https://placehold.co/40x40?text=👤';
 
 const API    = 'https://dev-chat-app-backend.onrender.com/api';
 const SOCKET = 'https://dev-chat-app-backend.onrender.com/';
+const FILE_BASE = import.meta.env.VITE_FILE_BASE || 'https://chat-app-backend-rqh4.onrender.com';
+
+const resolveAvatar = (url) =>
+  url?.startsWith('http') ? url : `${FILE_BASE}${url || ''}`;
 
 /* ===================== 共通オーバーレイ ===================== */
 function Overlay({ isOpen, onClose, children }) {
@@ -69,7 +73,7 @@ function AccountOverlay({ isOpen, onClose, token, onUpdateMe }) {
     <Overlay isOpen={isOpen} onClose={onClose}>
       <h2>アカウント情報</h2>
       <img
-        src={info.avatar_url || DEFAULT_AVATAR}
+        src={resolveAvatar(info.avatar_url) || DEFAULT_AVATAR}
         alt="avatar"
         style={{ width: 64, height: 64, borderRadius: '50%' }}
       />
